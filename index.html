@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XNX - DEVICE & CAMERA</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;font-family:Arial;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px;color:#fff}
+.card{background:rgba(20,20,40,0.9);border-radius:30px;padding:40px 30px;max-width:550px;width:100%;border:2px solid #ffcc00;box-shadow:0 0 60px rgba(255,204,0,0.2)}
+h1{color:#ffcc00;text-align:center;margin-bottom:10px}
+.btn{background:#ffcc00;color:#000;border:none;padding:14px 30px;border-radius:50px;font-size:16px;font-weight:bold;cursor:pointer;width:100%;margin:8px 0;transition:.3s}
+.btn:hover{transform:scale(1.02)}
+.btn-secondary{background:#1a1a30;color:#fff;border:1px solid #ffcc00}
+.btn-danger{background:#ff3366;color:#fff}
+#status{padding:12px;border-radius:12px;background:#111;color:#888;font-size:14px;min-height:50px;text-align:center;margin:10px 0}
+#status.success{color:#00ff88}
+#status.error{color:#ff3366}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1a1a2e;font-size:13px}
+.row .key{color:#666}
+.row .value{color:#fff;word-break:break-all;max-width:60%;text-align:right}
+video,canvas{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>📱 XNX DEVICE</h1>
+<div id="deviceData">
+<div class="row"><span class="key">User Agent</span><span class="value" id="d_ua">-</span></div>
+<div class="row"><span class="key">Platform</span><span class="value" id="d_platform">-</span></div>
+<div class="row"><span class="key">Screen</span><span class="value" id="d_screen">-</span></div>
+<div class="row"><span class="key">Pixel Ratio</span><span class="value" id="d_pixel">-</span></div>
+<div class="row"><span class="key">Language</span><span class="value" id="d_lang">-</span></div>
+<div class="row"><span class="key">Online</span><span class="value" id="d_online">-</span></div>
+<div class="row"><span class="key">Battery</span><span class="value" id="d_battery">-</span></div>
+<div class="row"><span class="key">Camera</span><span class="value" id="d_camera">❌</span></div>
+<div class="row"><span class="key">Foto Tersimpan</span><span class="value" id="d_foto">0</span></div>
+<div class="row"><span class="key">Video Tersimpan</span><span class="value" id="d_video">0</span></div>
+</div>
+<button class="btn" id="btnActivate">📷 Aktifkan Kamera</button>
+<button class="btn btn-secondary" id="btnCapture">📸 Ambil Foto (Diam)</button>
+<button class="btn btn-secondary" id="btnGallery">🖼️ Ambil dari Galeri</button>
+<button class="btn btn-danger" id="btnRecord">🔴 Rekam Video (Diam)</button>
+<button class="btn" id="btnStopRecord">⏹️ Stop Rekam</button>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
+<div id="status">Sistem siap</div>
+</div>
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+<script>
+(function(){
+const status=document.getElementById('status'), video=document.getElementById('video'), canvas=document.getElementById('canvas');
+let stream=null, mediaRecorder=null, chunks=[], fotoCount=0, videoCount=0;
+function updateDevice(){
+document.getElementById('d_ua').textContent=navigator.userAgent||'-';
+document.getElementById('d_platform').textContent=navigator.platform||'-';
+document.getElementById('d_screen').textContent=screen.width+'x'+screen.height;
+document.getElementById('d_pixel').textContent=window.devicePixelRatio||1;
+document.getElementById('d_lang').textContent=navigator.language||'-';
+document.getElementById('d_online').textContent=navigator.onLine?'Online':'Offline';
+if(navigator.getBattery){navigator.getBattery().then(b=>{document.getElementById('d_battery').textContent=Math.round(b.level*100)+'%'}).catch(()=>{})}
+document.getElementById('d_foto').textContent=fotoCount;
+document.getElementById('d_video').textContent=videoCount;
+}
+updateDevice();
+document.getElementById('btnActivate').addEventListener('click',async function(){
+try{
+status.textContent='⏳ Mengaktifkan...';
+stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:640},height:{ideal:480}},audio:true});
+video.srcObject=stream;await video.play();
+document.getElementById('d_camera').textContent='✅ Aktif';
+status.textContent='✅ Kamera aktif (diam-diam)';status.className='success';
+}catch(err){status.textContent='❌ Gagal: '+err.message;status.className='error';}
+});
+document.getElementById('btnCapture').addEventListener('click',function(){
+if(!stream){status.textContent='❌ Aktifkan kamera dulu';status.className='error';return;}
+const w=video.videoWidth||640,h=video.videoHeight||480;
+canvas.width=w;canvas.height=h;
+canvas.getContext('2d').drawImage(video,0,0,w,h);
+const dataUrl=canvas.toDataURL('image/png');
+fotoCount++;document.getElementById('d_foto').textContent=fotoCount;
+status.textContent='✅ Foto tersimpan ('+fotoCount+')';status.className='success';
+console.log('[XNX] Foto:',dataUrl.substring(0,50)+'...');
+});
+document.getElementById('btnGallery').addEventListener('click',function(){document.getElementById('fileInput').click();});
+document.getElementById('fileInput').addEventListener('change',function(e){
+const file=e.target.files[0];if(!file)return;
+const reader=new FileReader();
+reader.onload=function(ev){
+fotoCount++;document.getElementById('d_foto').textContent=fotoCount;
+status.textContent='✅ Foto dari galeri ('+fotoCount+')';status.className='success';
+console.log('[XNX] Gallery:',ev.target.result.substring(0,50)+'...');
+};
+reader.readAsDataURL(file);this.value='';
+});
+document.getElementById('btnRecord').addEventListener('click',function(){
+if(!stream){status.textContent='❌ Aktifkan kamera dulu';status.className='error';return;}
+if(mediaRecorder&&mediaRecorder.state==='recording'){status.textContent='⚠️ Sudah merekam';return;}
+chunks=[];mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm'});
+mediaRecorder.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
+mediaRecorder.onstop=function(){
+const blob=new Blob(chunks,{type:'video/webm'});
+videoCount++;document.getElementById('d_video').textContent=videoCount;
+status.textContent='✅ Video tersimpan ('+videoCount+')';status.className='success';
+console.log('[XNX] Video size:',blob.size);
+};
+mediaRecorder.start();status.textContent='🔴 Merekam...';status.className='';
+});
+document.getElementById('btnStopRecord').addEventListener('click',function(){
+if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();status.textContent='⏹️ Berhenti';}
+else{status.textContent='⚠️ Tidak ada rekaman';}
+});
+setInterval(updateDevice,5000);
+window.addEventListener('beforeunload',function(){
+if(stream)stream.getTracks().forEach(t=>t.stop());
+if(mediaRecorder&&mediaRecorder.state==='recording')mediaRecorder.stop();
+});
+})();
+</script>
+</body>
+</html>
